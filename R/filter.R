@@ -995,15 +995,20 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
       fqR <- fqR[idsR %in% idsF]
     }
     ## RGS: keep a copy of the input to check which ones stayed
-    fqF.init <- length(fqF)
+    fqF.init <- tibble (pos = 1:length(fqF))
     # fqR.init <- fqR
-    
+    fqF.init$orient <- TRUE
     # Enforce orient.fwd
     if(!is.null(orient.fwd)) {
       if(!C_isACGT(orient.fwd)) stop("Non-ACGT characters detected in orient.fwd")
       barlen <- nchar(orient.fwd)
       keepF <- narrow(sread(fqF),1,barlen) == orient.fwd
       keepR <- (narrow(sread(fqR),1,barlen) == orient.fwd) & !keepF
+      
+      ## Add a index
+      
+      fqF.init$orient <- keepR
+      
       fq <- ShortReadQ(sread=c(sread(fqF[keepF]), sread(fqR[keepR])), 
                        quality=c(quality(quality(fqF[keepF])), quality(quality(fqR[keepR]))), 
                        id=c(id(fqF[keepF]), id(fqR[keepR])))
@@ -1023,6 +1028,11 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     }
     # Trim left
     keep <- (width(fqF) >= startF & width(fqR) >= startR)
+    
+    fqF.init %>% 
+      filter(orient == TRUE) %>% 
+      mutate()
+    
     fqF <- fqF[keep]
     fqF <- narrow(fqF, start = startF, end = NA)
     fqR <- fqR[keep]
@@ -1147,7 +1157,7 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     file.remove(fout[[2]])
   }
   
-  return(invisible(list( init = seq (1:as.numeric(fqF.init)))))
+  return(invisible(list( init = fqF.init)))
  
 }
 ################################################################################
