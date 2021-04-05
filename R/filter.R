@@ -476,24 +476,27 @@ filterAndTrim <- function(fwd, filt, rev=NULL, filt.rev=NULL, compress=TRUE,
                      mc.cores=ncores, mc.silent=TRUE)
   }
   # Check if expected matrix was returned, if not there are errors
-  if(!is(rval, "matrix")) {
-    if(is(rval, "list")) { # Mix of errors and not
-      rval <- unlist(rval[sapply(rval, is.character)])
-    }
-    if(length(rval)>5) rval <- rval[1:5]
-    stop("These are the errors (up to 5) encountered in individual cores...\n", rval)
-  }
+  # RGS: Comment out the error checker to allow for any output
+  
+  # if(!is(rval, "matrix")) {
+  #   if(is(rval, "list")) { # Mix of errors and not
+  #     rval <- unlist(rval[sapply(rval, is.character)])
+  #   }
+  #   if(length(rval)>5) rval <- rval[1:5]
+  #   stop("These are the errors (up to 5) encountered in individual cores...\n", rval)
+  # }
   # Check if all input files generated a return (to catch poorly behaving out-of-memory errors)
-  if(ncol(rval) != length(fwd)) {
-    stop("Some input files were not processed, perhaps due to memory issues. Consider lowering ncores.")
-  }
-  colnames(rval) <- basename(fwd)
-  if(all(rval["reads.out",]==0)) {
-    warning("No reads passed the filter. Please revisit your filtering parameters.")
-  } else if(any(rval["reads.out",]==0)) {
-    message("Some input samples had no reads pass the filter.")
-  }
-  return(invisible(t(rval)))
+  # if(ncol(rval) != length(fwd)) {
+  #   stop("Some input files were not processed, perhaps due to memory issues. Consider lowering ncores.")
+  # }
+  # colnames(rval) <- basename(fwd)
+  # if(all(rval["reads.out",]==0)) {
+  #   warning("No reads passed the filter. Please revisit your filtering parameters.")
+  # } else if(any(rval["reads.out",]==0)) {
+  #   message("Some input samples had no reads pass the filter.")
+  # }
+return(invisible(rval))
+    # return(invisible(t(rval)))
 }
 #' Filter and trim a fastq file.
 #' 
@@ -991,6 +994,9 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
       fqF <- fqF[idsF %in% idsR]
       fqR <- fqR[idsR %in% idsF]
     }
+    ## RGS: keep a copy of the input to check which ones stayed
+    fqF.init <- length(fqF)
+    # fqR.init <- fqR
     
     # Enforce orient.fwd
     if(!is.null(orient.fwd)) {
@@ -1006,6 +1012,8 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
                        id=c(id(fqR[keepF]), id(fqF[keepR])))
       fqF <- fq
       rm(fq)
+      ## keep record 
+      
     }
     # Enforce maxLen
     if(is.finite(maxLen[[1]]) || is.finite(maxLen[[2]])) {
@@ -1139,7 +1147,8 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     file.remove(fout[[2]])
   }
   
-  return(invisible(c(reads.in=inseqs, reads.out=outseqs)))
+  return(invisible(list( init = seq (1:as.numeric(fqF.init)))))
+ 
 }
 ################################################################################
 #' Determine if input sequence(s) match the phiX genome.

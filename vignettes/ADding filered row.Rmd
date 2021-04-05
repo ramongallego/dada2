@@ -1,0 +1,44 @@
+---
+title: "Adding row number from Dada2"
+output: html_notebook
+---
+
+The Dada2 algorithm returns the output of the sequences, can it return another element with some info about the header
+
+```{r}
+# library(dada2)
+library(tidyverse)
+library (here)
+```
+
+Load the files
+
+```{r}
+F1s <- list.files(path = here("data"),
+                  pattern = 
+                    "*R1_001.fastq")
+
+R1s <- list.files(path = here("data"),
+                  pattern = 
+                    "*R2_001.fastq")
+
+output <- here("output", paste0("output_", Sys.Date()))
+
+dir.create(file.path(output, "filtered"), recursive = T)
+
+tibble (file1 = here("data", F1s), file2 =here("data", R1s), basename = F1s) %>% 
+  separate(basename, into = "basename", sep= "_L001_R1", remove = F) %>% 
+  mutate(filtF1 = file.path(output, "filtered", paste0(basename, "_F1_filt.fastq.gz")),
+         filtR1 = file.path(output, "filtered", paste0(basename, "_R1_filt.fastq.gz"))) %>% 
+   mutate (outFs = pmap(.l= list (file1, filtF1, file2, filtR1),
+                       .f = function(a, b, c, d) {
+                         filterAndTrim(a,b,c,d,
+                                      # truncLen=c(params$trimming.length.Read1,params$trimming.length.Read2),
+                                      truncLen=c(200,150),
+                                       maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+                                       compress=TRUE, multithread=TRUE, )
+                       } )) %>%
+  pull(outFs)
+
+
+```
