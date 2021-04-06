@@ -14,11 +14,11 @@ library (here)
 Load the files
 
 ```{r}
-F1s <- list.files(path = here("data"),
+F1s <- list.files(path = here("data", "fastqs"),
                   pattern = 
                     "*R1_001.fastq")
 
-R1s <- list.files(path = here("data"),
+R1s <- list.files(path = here("data", "fastqs"),
                   pattern = 
                     "*R2_001.fastq")
 
@@ -26,7 +26,7 @@ output <- here("output", paste0("output_", Sys.Date()))
 
 dir.create(file.path(output, "filtered"), recursive = T)
 
-tibble (file1 = here("data", F1s), file2 =here("data", R1s), basename = F1s) %>% 
+tibble (file1 = here("data", "fastqs", F1s), file2 =here("data", "fastqs", R1s), basename = F1s) %>% 
   separate(basename, into = "basename", sep= "_L001_R1", remove = F) %>% 
   mutate(filtF1 = file.path(output, "filtered", paste0(basename, "_F1_filt.fastq.gz")),
          filtR1 = file.path(output, "filtered", paste0(basename, "_R1_filt.fastq.gz"))) %>% 
@@ -35,10 +35,16 @@ tibble (file1 = here("data", F1s), file2 =here("data", R1s), basename = F1s) %>%
                          filterAndTrim(a,b,c,d,
                                       # truncLen=c(params$trimming.length.Read1,params$trimming.length.Read2),
                                       truncLen=c(200,150),
-                                       maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
-                                       compress=TRUE, multithread=TRUE, )
-                       } )) %>%
-  pull(outFs)
+                                       maxN=0, maxEE=c(2,2), truncQ=2, #rm.phix=TRUE,
+                                       compress=TRUE, multithread=TRUE )
+                       } )) -> until.filter
+  
+until.filter %>% 
+pull(outFs) %>% set_names(F1s) %>% 
+  flatten_df(.id = "sample") %>% 
+  group_by(sample, kept) %>% 
+  tally()
+  
 
 
 ```

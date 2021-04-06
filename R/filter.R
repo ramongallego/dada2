@@ -998,6 +998,13 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     fqF.init <- tibble (pos = 1:length(fqF))
     # fqR.init <- fqR
     fqF.init$orient <- TRUE
+    fqF.init$maxLen <- TRUE
+    fqF.init$trim.left <- TRUE
+    fqF.init$trim.right <- TRUE
+    fqF.init$truncQ <- TRUE
+    fqF.init$length <- TRUE
+    fqF.init$minQ <- TRUE
+    Start.point <- fqF.init
     # Enforce orient.fwd
     if(!is.null(orient.fwd)) {
       if(!C_isACGT(orient.fwd)) stop("Non-ACGT characters detected in orient.fwd")
@@ -1025,13 +1032,18 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
       keep <- width(fqF) <= maxLen[[1]] & width(fqR) <= maxLen[[2]]
       fqF <- fqF[keep]
       fqR <- fqR[keep]
+      fqF.init %>% 
+        filter(orient == TRUE) %>% 
+        mutate(maxLen = keep)  -> fqF.init
+    
     }
     # Trim left
     keep <- (width(fqF) >= startF & width(fqR) >= startR)
     
     fqF.init %>% 
       filter(orient == TRUE) %>% 
-      mutate()
+      filter(maxLen == TRUE) %>% 
+      mutate(trim.left = keep)
     
     fqF <- fqF[keep]
     fqF <- narrow(fqF, start = startF, end = NA)
@@ -1042,11 +1054,27 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
       keep <- width(fqF) > trimRight[[1]]
       fqF <- fqF[keep]; fqR <- fqR[keep]
       fqF <- narrow(fqF, start=NA, end=width(fqF)-trimRight[[1]])
+     
+       fqF.init %>% 
+        filter(orient == TRUE) %>% 
+        filter(maxLen == TRUE) %>% 
+        filter(trim.left == TRUE) %>% 
+        mutate(trim.right = keep) -> fqF.init
+      
     }
     if(trimRight[[2]] > 0) {
+      
+      
       keep <- width(fqR) > trimRight[[2]]
       fqF <- fqF[keep]; fqR <- fqR[keep]
       fqR <- narrow(fqR, start=NA, end=width(fqR)-trimRight[[2]])
+      
+      fqF.init %>% 
+        filter(orient == TRUE) %>% 
+        filter(maxLen == TRUE) %>% 
+        filter(trim.left == TRUE) %>% 
+        filter(trim.right == TRUE) %>% 
+        mutate(trim.right = keep)-> fqF.init
     }
     # Trim on truncQ
     # Convert numeric quality score to the corresponding ascii character
@@ -1073,12 +1101,29 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     fqF <- fqF[keep]
     fqR <- fqR[keep]
     
+    fqF.init %>% 
+      filter(orient == TRUE) %>% 
+      filter(maxLen == TRUE) %>% 
+      filter(trim.left == TRUE) %>% 
+      filter(trim.right == TRUE) %>% 
+      mutate(truncQ = keep) -> fqF.init
+    
+    
     # Filter any with less than required length
     keep <- rep(TRUE, length(fqF))
     if(!is.na(endF)) { keep <- keep & (width(fqF) >= endF) }
     if(!is.na(endR)) { keep <- keep & (width(fqR) >= endR) }
     fqF <- fqF[keep]
     fqR <- fqR[keep]
+    
+    fqF.init %>% 
+      filter(orient == TRUE) %>% 
+      filter(maxLen == TRUE) %>% 
+      filter(trim.left == TRUE) %>% 
+      filter(trim.right == TRUE) %>% 
+      filter (truncQ == TRUE) %>% 
+      mutate (length = keep) -> fqF.init
+    
     # Truncate to truncLen
     fqF <- narrow(fqF, start = 1, end = endF)
     fqR <- narrow(fqR, start = 1, end = endR)
@@ -1086,10 +1131,30 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     keep <- width(fqF) >= minLen[[1]] & width(fqR) >= minLen[[2]]
     fqF <- fqF[keep]
     fqR <- fqR[keep]
+    
+    fqF.init %>% 
+      filter(orient == TRUE) %>% 
+      filter(maxLen == TRUE) %>% 
+      filter(trim.left == TRUE) %>% 
+      filter(trim.right == TRUE) %>% 
+      filter (truncQ == TRUE) %>% 
+      filter (length == TRUE) %>% 
+      mutate (length = keep) -> fqF.init
 
     # Filter based on minQ and Ns and maxEE
     suppressWarnings(keep <- nFilter(maxN[[1]])(fqF) & nFilter(maxN[[2]])(fqR))
     fqF <- fqF[keep]; fqR <- fqR[keep]
+    
+    fqF.init %>% 
+      filter(orient == TRUE) %>% 
+      filter(maxLen == TRUE) %>% 
+      filter(trim.left == TRUE) %>% 
+      filter(trim.right == TRUE) %>% 
+      filter (truncQ == TRUE) %>% 
+      filter (length == TRUE) %>%
+      mutate(minQ = keep) -> fqF.init
+    
+    
     keep <- rep(TRUE, length(fqF))
     qmat <- as(quality(fqF), "matrix")
     if(minQ[[1]] > truncQ[[1]]) suppressWarnings(keep <- keep & (apply(qmat, 1, min, na.rm=TRUE)>minQ[[1]]))
@@ -1099,6 +1164,16 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     if(maxEE[[2]] < Inf) keep <- keep & C_matrixEE(qmat) <= maxEE[[2]]
     fqF <- fqF[keep]; fqR <- fqR[keep]
     rm(qmat)
+    
+    fqF.init %>% 
+      filter(orient == TRUE) %>% 
+      filter(maxLen == TRUE) %>% 
+      filter(trim.left == TRUE) %>% 
+      filter(trim.right == TRUE) %>% 
+      filter (truncQ == TRUE) %>% 
+      filter (length == TRUE) %>%
+      filter (minQ == TRUE) %>% 
+      mutate(minQ = keep) -> fqF.init
     
     if(length(fqF) != length(fqR)) stop("Filtering caused mismatch between forward and reverse sequence lists: ", length(fqF), ", ", length(fqR), ".")
     
@@ -1157,7 +1232,11 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
     file.remove(fout[[2]])
   }
   
-  return(invisible(list( init = fqF.init)))
+  # create a df with the columns pos, kept; being kept all true
+  Start.point %>% select(pos) %>% anti_join(fqF.init) %>% mutate(kept = F) -> lost
+  fqF.init %>% select(pos) %>% mutate(kept = T) %>% bind_rows(lost) %>% arrange(pos) -> destiny
+  
+  return(invisible(list (destiny)))
  
 }
 ################################################################################
