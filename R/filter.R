@@ -1173,7 +1173,8 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
       filter (truncQ == TRUE) %>% 
       filter (length == TRUE) %>%
       filter (minQ == TRUE) %>% 
-      mutate(minQ = keep) -> fqF.init
+      mutate(minQ = keep) %>% 
+      filter (minQ == TRUE)-> fqF.init
     
     if(length(fqF) != length(fqR)) stop("Filtering caused mismatch between forward and reverse sequence lists: ", length(fqF), ", ", length(fqR), ".")
     
@@ -1233,11 +1234,12 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
   }
   
   # create a df with the columns pos, kept; being kept all true
-  Start.point %>% select(pos) %>% anti_join(fqF.init) %>% mutate(kept = F) -> lost
-  fqF.init %>% select(pos) %>% mutate(kept = T) %>% bind_rows(lost) %>% arrange(pos) -> destiny
+  # Start.point %>% select(pos) %>% anti_join(fqF.init) %>% mutate(kept = F) -> lost
+  # fqF.init %>% select(pos) %>% mutate(kept = T) %>% bind_rows(lost) %>% arrange(pos) -> destiny
   
-  return(invisible(list (destiny)))
- 
+  # return(invisible(list (destiny)))
+  fqF.init %>% select(pos) %>% mutate(kept = T) -> fqF.init
+  return(invisible(list (fqF.init)))
 }
 ################################################################################
 #' Determine if input sequence(s) match the phiX genome.

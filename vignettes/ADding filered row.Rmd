@@ -41,10 +41,30 @@ tibble (file1 = here("data", "fastqs", F1s), file2 =here("data", "fastqs", R1s),
   
 until.filter %>% 
 pull(outFs) %>% set_names(F1s) %>% 
-  flatten_df(.id = "sample") %>% 
-  group_by(sample, kept) %>% 
-  tally()
+  flatten_df(.id = "sample") -> just.filter.outs
   
-
+just.filter.outs %>% 
+  filter(str_detect(sample, "S79"))
 
 ```
+
+Now derep
+
+```{r}
+until.filter %>% 
+  slice(1) %>% 
+  mutate(derepF1 = map(filtF1, derepFastq)) %>% 
+  mutate(derepR1 = map(filtR1, derepFastq)) %>% 
+  mutate(tracking = pmap(.l = list(outFs, derepF1, derepR1),
+                         .f = function(a,b,c){
+                           flatten_df(a) %>% 
+                             mutate(derepF = b$map,
+                                    derepR = c$map) -> df
+                           return(df)
+                         })) %>% 
+  pull(tracking) %>% 
+  map(~.x %>% filter(derepF ==1))
+
+```
+
+Not sure if this is working correctly - I would have expected some consistency between what we find in the fwd and what we find in the Rev
