@@ -44,7 +44,7 @@ pull(outFs) %>% set_names(F1s) %>%
   flatten_df(.id = "sample") -> just.filter.outs
   
 just.filter.outs %>% 
-  filter(str_detect(sample, "S79"))
+  filter(str_detect(sample, "S19"))
 
 ```
 
@@ -52,7 +52,6 @@ Now derep
 
 ```{r}
 until.filter %>% 
-  slice(1) %>% 
   mutate(derepF1 = map(filtF1, derepFastq)) %>% 
   mutate(derepR1 = map(filtR1, derepFastq)) %>% 
   mutate(tracking = pmap(.l = list(outFs, derepF1, derepR1),
@@ -61,10 +60,62 @@ until.filter %>%
                              mutate(derepF = b$map,
                                     derepR = c$map) -> df
                            return(df)
-                         })) %>% 
+                         })) -> until.derep 
+
+until.derep %>% 
+pull(tracking) %>% 
+  map(~ggplot(.x,aes(x = derepF, y = derepR)) + geom_hex())
+
+until.derep %>% 
   pull(tracking) %>% 
-  map(~.x %>% filter(derepF ==1))
+  map(~.x %>% distinct(derepF))
+```
+
+
+```{r}
+until.derep %>% 
+pull(tracking) %>% 
+  map(~.x %>% tally_wide(rows = derepF, cols = derepR))
 
 ```
 
-Not sure if this is working correctly - I would have expected some consistency between what we find in the fwd and what we find in the Rev
+Let's get the error estimates
+
+```{r}
+until.derep %>% 
+  mutate( errF1 = map(filtF1, ~ learnErrors(.x, multithread=TRUE,verbose = 0)),     # Calculate errors
+          errR1 = map(filtR1, ~ learnErrors(.x, multithread=TRUE,verbose = 0))) -> until.errors
+```
+
+Now, I think dada2 also keeps the info in the same format as derep
+
+```{r}
+until.errors %>% 
+  mutate(dadaF1  = map2(derepF1,errF1, ~ dada(.x, err = .y, multithread = TRUE)),  # dada2
+          dadaR1  = map2(derepR1,errR1, ~ dada(.x, err = .y, multithread = TRUE))) -> until.dada
+```
+
+Explore the dada2
+```{r}
+until.dada %>% 
+  pull(dadaF1) -> dadaf1
+
+dadaf1 %>% 
+  map(~.x$map %>% as_tibble ) %>% flatten_df() %>% distinct(value)
+
+```
+
+So it seems like a left_join will do
+
+```{r}
+until.dada %>% 
+  mutate(tracking.dada = pmap(.l = list(tracking, dadaF1, dadaR1),
+                         .f = function(a,b,c){
+                           a %>% 
+                             left_join(tibble(dadaF = b$map) %>% rownames_to_column("derepF") %>% mutate(derepF = as.numeric(derepF))) %>% 
+                             left_join(tibble(dadaR = c$map) %>% rownames_to_column("derepR") %>% mutate(derepR = as.numeric(derepR)))
+                           
+                         } )) %>% 
+  pull(tracking.dada)
+```
+

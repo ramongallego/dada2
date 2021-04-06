@@ -1174,7 +1174,7 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
       filter (length == TRUE) %>%
       filter (minQ == TRUE) %>% 
       mutate(minQ = keep) %>% 
-      filter (minQ == TRUE)-> fqF.init
+      filter (minQ == TRUE) -> fqF.init
     
     if(length(fqF) != length(fqR)) stop("Filtering caused mismatch between forward and reverse sequence lists: ", length(fqF), ", ", length(fqR), ".")
     
